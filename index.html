@@ -216,7 +216,7 @@
   <div id="summary-modal" class="fixed inset-0 z-50 hidden">
     <div class="modal-bg absolute inset-0" onclick="closeSummaryModal()"></div>
     <div class="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold text-gray-900">📊 Prehľad vozidiel po díleroch</h3>
           <div class="flex gap-2">
@@ -727,52 +727,100 @@
   // ============================================================
   // DEALER SUMMARY
   // ============================================================
+  const DEALER_NAMES = {
+    'OSK0010': {name:'BUILT', city:'Prešov'},
+    'OSK0011': {name:'BUILT', city:'Košice'},
+    'OSK0020': {name:'AUTOŠTÝL', city:'Trenč. Turná'},
+    'OSK0021': {name:'AUTOŠTÝL', city:'Bratislava'},
+    'OSK0030': {name:'Béhr a Béhr', city:'Trnava'},
+    'OSK0040': {name:'AUTOVENDY', city:'Plavnica'},
+    'OSK0050': {name:'AUTO VIBA', city:'Lučenec'},
+    'OSK0060': {name:'J.M.MARTIN', city:'Martin'},
+    'OSK0080': {name:'LION CAR', city:'B. Bystrica'},
+    'OSK0090': {name:'UNICAR', city:'L. Mikuláš'},
+    'OSK0100': {name:'M.A.N. SK', city:'Komárno'},
+    'OSK0110': {name:'WINKLER', city:'Michalovce'},
+    'OSK0120': {name:'FINAL-CD', city:'Bratislava'},
+    'OSK0130': {name:'Auto Becchi', city:'Žilina'},
+    'OSK0140': {name:'AUTO-RÁCZ', city:'Levice'},
+    'OSK0150': {name:'MOTORBOX', city:'Tovarníky'},
+    'OSK0151': {name:'MOTORBOX', city:'Bojnice'},
+    'OSK0160': {name:'AUTO SWAM', city:'Košice'},
+    'OSK0170': {name:'ALBEX PLUS', city:'Nitra'},
+    'OSK0180': {name:'Benrox Plus', city:'Humenné'},
+    'OSK0190': {name:'Autoteam', city:'Stupava'}
+  };
+
+  function dealerLabel(code) {
+    const d = DEALER_NAMES[code];
+    return d ? `${d.name} — ${d.city}` : code;
+  }
+
   function getDealerStats() {
     const vList = Object.values(vehicles);
     const stats = {};
-    DEALERS.forEach(d => { stats[d] = {demo:0, nahradne:0, total:0}; });
+    const allModels = new Set();
+    DEALERS.forEach(d => { stats[d] = {demo:0, nahradne:0, total:0, models:{}}; });
     vList.forEach(v => {
       const d = v.dealer || 'Nepriradené';
-      if (!stats[d]) stats[d] = {demo:0, nahradne:0, total:0};
+      if (!stats[d]) stats[d] = {demo:0, nahradne:0, total:0, models:{}};
       stats[d].total++;
       if (v.type === 'demo') stats[d].demo++;
       else stats[d].nahradne++;
+      const m = v.model || 'Neznámy';
+      stats[d].models[m] = (stats[d].models[m]||0) + 1;
+      allModels.add(m);
     });
-    return stats;
+    return {stats, models: [...allModels].sort()};
   }
 
   function showDealerSummary() {
-    const stats = getDealerStats();
+    const {stats, models} = getDealerStats();
     const dealers = Object.keys(stats).sort();
     let totalD = 0, totalN = 0, totalA = 0;
+    const modelTotals = {};
+    models.forEach(m => { modelTotals[m] = 0; });
 
-    let html = '<table class="w-full text-sm border-collapse">';
+    let html = '<div class="overflow-x-auto"><table class="w-full text-sm border-collapse whitespace-nowrap">';
     html += '<thead><tr class="bg-navy-900 text-white text-left">';
-    html += '<th class="px-3 py-2.5 rounded-tl-lg font-semibold">Díler</th>';
-    html += '<th class="px-3 py-2.5 text-center font-semibold">DEMO</th>';
-    html += '<th class="px-3 py-2.5 text-center font-semibold">Náhradné</th>';
-    html += '<th class="px-3 py-2.5 text-center rounded-tr-lg font-semibold">Spolu</th>';
+    html += '<th class="px-3 py-2.5 rounded-tl-lg font-semibold sticky left-0 bg-navy-900 z-10">Díler</th>';
+    html += '<th class="px-2 py-2.5 text-center font-semibold">DEMO</th>';
+    html += '<th class="px-2 py-2.5 text-center font-semibold">Náhr.</th>';
+    html += '<th class="px-2 py-2.5 text-center font-semibold border-r border-white/20">Spolu</th>';
+    models.forEach((m, i) => {
+      const cls = i === models.length-1 ? 'rounded-tr-lg' : '';
+      html += `<th class="px-2 py-2.5 text-center font-medium text-[11px] ${cls}">${m}</th>`;
+    });
     html += '</tr></thead><tbody>';
 
     dealers.forEach((d, i) => {
       const s = stats[d];
       totalD += s.demo; totalN += s.nahradne; totalA += s.total;
       const bg = i % 2 === 0 ? 'bg-gray-50' : 'bg-white';
-      const highlight = s.total === 0 ? 'text-gray-300' : '';
-      html += `<tr class="${bg} ${highlight} hover:bg-blue-50 transition">`;
-      html += `<td class="px-3 py-2 font-medium">${d}</td>`;
-      html += `<td class="px-3 py-2 text-center">${s.demo || '<span class=\'text-gray-300\'>—</span>'}</td>`;
-      html += `<td class="px-3 py-2 text-center">${s.nahradne || '<span class=\'text-gray-300\'>—</span>'}</td>`;
-      html += `<td class="px-3 py-2 text-center font-semibold">${s.total || '<span class=\'text-gray-300\'>—</span>'}</td>`;
+      const dim = s.total === 0 ? 'text-gray-300' : '';
+      html += `<tr class="${bg} ${dim} hover:bg-blue-50 transition">`;
+      html += `<td class="px-3 py-2 font-medium sticky left-0 ${bg} z-10"><span class="text-gray-400 text-[10px] mr-1">${d}</span> ${dealerLabel(d)}</td>`;
+      html += `<td class="px-2 py-2 text-center">${s.demo || '<span class="text-gray-300">—</span>'}</td>`;
+      html += `<td class="px-2 py-2 text-center">${s.nahradne || '<span class="text-gray-300">—</span>'}</td>`;
+      html += `<td class="px-2 py-2 text-center font-semibold border-r border-gray-200">${s.total || '<span class="text-gray-300">—</span>'}</td>`;
+      models.forEach(m => {
+        const cnt = s.models[m] || 0;
+        modelTotals[m] += cnt;
+        html += `<td class="px-2 py-2 text-center text-xs">${cnt || '<span class="text-gray-200">·</span>'}</td>`;
+      });
       html += '</tr>';
     });
 
-    html += `<tr class="bg-navy-900 text-white font-bold">`;
-    html += `<td class="px-3 py-2.5 rounded-bl-lg">SPOLU</td>`;
-    html += `<td class="px-3 py-2.5 text-center">${totalD}</td>`;
-    html += `<td class="px-3 py-2.5 text-center">${totalN}</td>`;
-    html += `<td class="px-3 py-2.5 text-center rounded-br-lg">${totalA}</td>`;
-    html += '</tr></tbody></table>';
+    html += '<tr class="bg-navy-900 text-white font-bold">';
+    html += '<td class="px-3 py-2.5 rounded-bl-lg sticky left-0 bg-navy-900 z-10">SPOLU</td>';
+    html += `<td class="px-2 py-2.5 text-center">${totalD}</td>`;
+    html += `<td class="px-2 py-2.5 text-center">${totalN}</td>`;
+    html += `<td class="px-2 py-2.5 text-center border-r border-white/20">${totalA}</td>`;
+    models.forEach((m, i) => {
+      const cls = i === models.length-1 ? 'rounded-br-lg' : '';
+      html += `<td class="px-2 py-2.5 text-center text-xs ${cls}">${modelTotals[m]}</td>`;
+    });
+    html += '</tr></tbody></table></div>';
 
     document.getElementById('summary-table-container').innerHTML = html;
     document.getElementById('summary-modal').classList.remove('hidden');
@@ -783,9 +831,11 @@
   }
 
   function exportSummaryXlsx() {
-    const stats = getDealerStats();
+    const {stats, models} = getDealerStats();
     const dealers = Object.keys(stats).sort();
     let totalD = 0, totalN = 0, totalA = 0;
+    const modelTotals = {};
+    models.forEach(m => { modelTotals[m] = 0; });
     function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>';
@@ -799,17 +849,23 @@
     xml += '<Style ss:ID="s_r"></Style>';
     xml += '</Styles>';
 
+    const colCount = 5 + models.length;
     xml += '<Worksheet ss:Name="Prehlad dilerov">';
     xml += '<Table ss:DefaultRowHeight="22">';
-    xml += '<Column ss:AutoFitWidth="0" ss:Width="120"/>';
     xml += '<Column ss:AutoFitWidth="0" ss:Width="80"/>';
-    xml += '<Column ss:AutoFitWidth="0" ss:Width="90"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="180"/>';
     xml += '<Column ss:AutoFitWidth="0" ss:Width="70"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="80"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="60"/>';
+    models.forEach(() => { xml += '<Column ss:AutoFitWidth="0" ss:Width="110"/>'; });
+
     xml += '<Row ss:StyleID="s_h" ss:Height="28">';
+    xml += '<Cell><Data ss:Type="String">Kód</Data></Cell>';
     xml += '<Cell><Data ss:Type="String">Díler</Data></Cell>';
     xml += '<Cell><Data ss:Type="String">DEMO</Data></Cell>';
     xml += '<Cell><Data ss:Type="String">Náhradné</Data></Cell>';
     xml += '<Cell><Data ss:Type="String">Spolu</Data></Cell>';
+    models.forEach(m => { xml += `<Cell><Data ss:Type="String">${esc(m)}</Data></Cell>`; });
     xml += '</Row>';
 
     dealers.forEach(d => {
@@ -817,21 +873,29 @@
       totalD += s.demo; totalN += s.nahradne; totalA += s.total;
       xml += '<Row ss:StyleID="s_r">';
       xml += `<Cell><Data ss:Type="String">${esc(d)}</Data></Cell>`;
+      xml += `<Cell><Data ss:Type="String">${esc(dealerLabel(d))}</Data></Cell>`;
       xml += `<Cell><Data ss:Type="Number">${s.demo}</Data></Cell>`;
       xml += `<Cell><Data ss:Type="Number">${s.nahradne}</Data></Cell>`;
       xml += `<Cell><Data ss:Type="Number">${s.total}</Data></Cell>`;
+      models.forEach(m => {
+        const cnt = s.models[m] || 0;
+        modelTotals[m] += cnt;
+        xml += `<Cell><Data ss:Type="Number">${cnt}</Data></Cell>`;
+      });
       xml += '</Row>';
     });
 
     xml += '<Row ss:StyleID="s_t">';
+    xml += '<Cell><Data ss:Type="String"></Data></Cell>';
     xml += '<Cell><Data ss:Type="String">SPOLU</Data></Cell>';
     xml += `<Cell><Data ss:Type="Number">${totalD}</Data></Cell>`;
     xml += `<Cell><Data ss:Type="Number">${totalN}</Data></Cell>`;
     xml += `<Cell><Data ss:Type="Number">${totalA}</Data></Cell>`;
+    models.forEach(m => { xml += `<Cell><Data ss:Type="Number">${modelTotals[m]||0}</Data></Cell>`; });
     xml += '</Row>';
 
     xml += '</Table>';
-    xml += `<AutoFilter x:Range="R1C1:R${dealers.length+2}C4" xmlns="urn:schemas-microsoft-com:office:excel"/>`;
+    xml += `<AutoFilter x:Range="R1C1:R${dealers.length+2}C${colCount}" xmlns="urn:schemas-microsoft-com:office:excel"/>`;
     xml += '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions>';
     xml += '</Worksheet></Workbook>';
 
