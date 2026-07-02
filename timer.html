@@ -43,8 +43,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ex-info{flex:1;min-width:0}
 .ex-name{font-size:32px;font-weight:600;margin-bottom:4px}
 .ex-time{font-size:26px;color:var(--muted)}
-.ex-actions{display:flex;gap:10px}
-.ex-btn{background:none;border:none;color:var(--muted);font-size:36px;cursor:pointer;padding:8px;border-radius:10px;transition:all .15s}
+.ex-actions{display:flex;gap:6px}
+.ex-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:10px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.ex-btn svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ex-btn:active{color:var(--rest);transform:scale(.9)}
 .ex-btn.edit:active{color:var(--accent)}
 
@@ -89,11 +90,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dot.rest-dot{background:var(--rest);opacity:.5;width:10px;height:10px;align-self:center}
 
 .timer-controls{display:flex;gap:24px;align-items:center}
-.ctrl-btn{width:90px;height:90px;border-radius:50%;border:none;font-size:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ctrl-btn{width:80px;height:80px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ctrl-btn svg{stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .ctrl-btn:active{transform:scale(.9)}
-.ctrl-pause{background:var(--accent);color:var(--bg);width:110px;height:110px;font-size:52px}
-.ctrl-stop{background:var(--rest);color:white}
+.ctrl-pause{background:var(--accent);color:var(--bg);width:100px;height:100px}
+.ctrl-pause svg{width:44px;height:44px;fill:var(--bg);stroke:var(--bg)}
+.ctrl-stop{background:rgba(255,107,107,.15);color:var(--rest);border:2px solid var(--rest)}
+.ctrl-stop svg{width:32px;height:32px;fill:var(--rest);stroke:var(--rest)}
 .ctrl-skip{background:var(--surface);color:var(--text)}
+.ctrl-skip svg{width:32px;height:32px;fill:var(--text);stroke:var(--text)}
 
 /* Modal */
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:20px}
@@ -166,9 +171,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="timer-next" id="timer-next"></div>
     <div class="timer-progress-dots" id="timer-dots"></div>
     <div class="timer-controls">
-      <button class="ctrl-btn ctrl-stop" onclick="stopTimer()">⬛</button>
-      <button class="ctrl-btn ctrl-pause" onclick="togglePause()" id="pause-btn">⏸</button>
-      <button class="ctrl-btn ctrl-skip" onclick="skipPhase()">⏭</button>
+      <button class="ctrl-btn ctrl-stop" onclick="stopTimer()"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
+      <button class="ctrl-btn ctrl-pause" onclick="togglePause()" id="pause-btn"><svg viewBox="0 0 24 24" id="pause-icon"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>
+      <button class="ctrl-btn ctrl-skip" onclick="skipPhase()"><svg viewBox="0 0 24 24"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
     </div>
   </div>
 </div>
@@ -297,8 +302,8 @@ function renderExercises(){
         <div class="ex-time">${ex.time}s</div>
       </div>
       <div class="ex-actions">
-        <button class="ex-btn edit" onclick="openEditModal(${i})">✏️</button>
-        <button class="ex-btn" onclick="removeEx(${i})">✕</button>
+        <button class="ex-btn edit" onclick="openEditModal(${i})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="ex-btn" onclick="removeEx(${i})"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>`;
     list.appendChild(card);
   });
@@ -384,7 +389,7 @@ function startTimer(){
   phases.unshift({type:'prep',name:'Priprav sa',time:5,exIdx:-1,round:0});
   phaseIdx=0;
   paused=false;
-  document.getElementById('pause-btn').textContent='⏸';
+  document.getElementById('pause-btn').innerHTML='<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
   showScreen('timer-screen');
   renderDots();
   loadPhase();
@@ -471,7 +476,9 @@ function renderDots(){
 
 function togglePause(){
   paused=!paused;
-  document.getElementById('pause-btn').textContent=paused?'▶':'⏸';
+  document.getElementById('pause-btn').innerHTML=paused
+    ?'<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>'
+    :'<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 }
 
 function skipPhase(){
