@@ -134,8 +134,9 @@
           <span class="text-sm">Správa evidencie</span>
         </div>
         <div class="flex gap-2">
-          <button onclick="exportData()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">📊 Export do CSV</button>
-          <button onclick="exportXlsx()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">📗 Export do Excel</button>
+          <button onclick="showDealerSummary()" class="text-xs bg-brand-400/80 hover:bg-brand-400 px-3 py-1.5 rounded-lg transition font-semibold">📊 Prehľad dílerov</button>
+          <button onclick="exportData()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">📄 CSV</button>
+          <button onclick="exportXlsx()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">📗 Excel</button>
         </div>
       </div>
     </div>
@@ -207,6 +208,23 @@
           <button onclick="saveVehicle()" id="btn-save" class="flex-1 bg-navy-900 hover:bg-navy-800 text-white font-semibold py-2.5 rounded-xl transition text-sm">Uložiť</button>
           <button onclick="closeModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 px-5 rounded-xl transition text-sm">Zrušiť</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DEALER SUMMARY MODAL ========== -->
+  <div id="summary-modal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-bg absolute inset-0" onclick="closeSummaryModal()"></div>
+    <div class="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-900">📊 Prehľad vozidiel po díleroch</h3>
+          <div class="flex gap-2">
+            <button onclick="exportSummaryXlsx()" class="text-xs bg-navy-900 hover:bg-navy-800 text-white px-3 py-1.5 rounded-lg transition font-semibold">⬇ Export súhrnu</button>
+            <button onclick="closeSummaryModal()" class="text-gray-400 hover:text-gray-600 text-xl px-2">&times;</button>
+          </div>
+        </div>
+        <div id="summary-table-container"></div>
       </div>
     </div>
   </div>
@@ -704,6 +722,125 @@
     el.textContent = msg;
     document.getElementById('toast-container').appendChild(el);
     setTimeout(() => el.remove(), 3000);
+  }
+
+  // ============================================================
+  // DEALER SUMMARY
+  // ============================================================
+  function getDealerStats() {
+    const vList = Object.values(vehicles);
+    const stats = {};
+    DEALERS.forEach(d => { stats[d] = {demo:0, nahradne:0, total:0}; });
+    vList.forEach(v => {
+      const d = v.dealer || 'Nepriradené';
+      if (!stats[d]) stats[d] = {demo:0, nahradne:0, total:0};
+      stats[d].total++;
+      if (v.type === 'demo') stats[d].demo++;
+      else stats[d].nahradne++;
+    });
+    return stats;
+  }
+
+  function showDealerSummary() {
+    const stats = getDealerStats();
+    const dealers = Object.keys(stats).sort();
+    let totalD = 0, totalN = 0, totalA = 0;
+
+    let html = '<table class="w-full text-sm border-collapse">';
+    html += '<thead><tr class="bg-navy-900 text-white text-left">';
+    html += '<th class="px-3 py-2.5 rounded-tl-lg font-semibold">Díler</th>';
+    html += '<th class="px-3 py-2.5 text-center font-semibold">DEMO</th>';
+    html += '<th class="px-3 py-2.5 text-center font-semibold">Náhradné</th>';
+    html += '<th class="px-3 py-2.5 text-center rounded-tr-lg font-semibold">Spolu</th>';
+    html += '</tr></thead><tbody>';
+
+    dealers.forEach((d, i) => {
+      const s = stats[d];
+      totalD += s.demo; totalN += s.nahradne; totalA += s.total;
+      const bg = i % 2 === 0 ? 'bg-gray-50' : 'bg-white';
+      const highlight = s.total === 0 ? 'text-gray-300' : '';
+      html += `<tr class="${bg} ${highlight} hover:bg-blue-50 transition">`;
+      html += `<td class="px-3 py-2 font-medium">${d}</td>`;
+      html += `<td class="px-3 py-2 text-center">${s.demo || '<span class=\'text-gray-300\'>—</span>'}</td>`;
+      html += `<td class="px-3 py-2 text-center">${s.nahradne || '<span class=\'text-gray-300\'>—</span>'}</td>`;
+      html += `<td class="px-3 py-2 text-center font-semibold">${s.total || '<span class=\'text-gray-300\'>—</span>'}</td>`;
+      html += '</tr>';
+    });
+
+    html += `<tr class="bg-navy-900 text-white font-bold">`;
+    html += `<td class="px-3 py-2.5 rounded-bl-lg">SPOLU</td>`;
+    html += `<td class="px-3 py-2.5 text-center">${totalD}</td>`;
+    html += `<td class="px-3 py-2.5 text-center">${totalN}</td>`;
+    html += `<td class="px-3 py-2.5 text-center rounded-br-lg">${totalA}</td>`;
+    html += '</tr></tbody></table>';
+
+    document.getElementById('summary-table-container').innerHTML = html;
+    document.getElementById('summary-modal').classList.remove('hidden');
+  }
+
+  function closeSummaryModal() {
+    document.getElementById('summary-modal').classList.add('hidden');
+  }
+
+  function exportSummaryXlsx() {
+    const stats = getDealerStats();
+    const dealers = Object.keys(stats).sort();
+    let totalD = 0, totalN = 0, totalA = 0;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"';
+    xml += ' xmlns:o="urn:schemas-microsoft-com:office:office"';
+    xml += ' xmlns:x="urn:schemas-microsoft-com:office:excel"';
+    xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+    xml += '<Styles>';
+    xml += '<Style ss:ID="s_h"><Font ss:Bold="1" ss:Size="11" ss:Color="#FFFFFF"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>';
+    xml += '<Style ss:ID="s_t"><Font ss:Bold="1" ss:Size="11" ss:Color="#FFFFFF"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>';
+    xml += '<Style ss:ID="s_r"></Style>';
+    xml += '</Styles>';
+
+    xml += '<Worksheet ss:Name="Prehlad dilerov">';
+    xml += '<Table ss:DefaultRowHeight="22">';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="120"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="80"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="90"/>';
+    xml += '<Column ss:AutoFitWidth="0" ss:Width="70"/>';
+    xml += '<Row ss:StyleID="s_h" ss:Height="28">';
+    xml += '<Cell><Data ss:Type="String">Díler</Data></Cell>';
+    xml += '<Cell><Data ss:Type="String">DEMO</Data></Cell>';
+    xml += '<Cell><Data ss:Type="String">Náhradné</Data></Cell>';
+    xml += '<Cell><Data ss:Type="String">Spolu</Data></Cell>';
+    xml += '</Row>';
+
+    dealers.forEach(d => {
+      const s = stats[d];
+      totalD += s.demo; totalN += s.nahradne; totalA += s.total;
+      xml += '<Row ss:StyleID="s_r">';
+      xml += `<Cell><Data ss:Type="String">${esc(d)}</Data></Cell>`;
+      xml += `<Cell><Data ss:Type="Number">${s.demo}</Data></Cell>`;
+      xml += `<Cell><Data ss:Type="Number">${s.nahradne}</Data></Cell>`;
+      xml += `<Cell><Data ss:Type="Number">${s.total}</Data></Cell>`;
+      xml += '</Row>';
+    });
+
+    xml += '<Row ss:StyleID="s_t">';
+    xml += '<Cell><Data ss:Type="String">SPOLU</Data></Cell>';
+    xml += `<Cell><Data ss:Type="Number">${totalD}</Data></Cell>`;
+    xml += `<Cell><Data ss:Type="Number">${totalN}</Data></Cell>`;
+    xml += `<Cell><Data ss:Type="Number">${totalA}</Data></Cell>`;
+    xml += '</Row>';
+
+    xml += '</Table>';
+    xml += `<AutoFilter x:Range="R1C1:R${dealers.length+2}C4" xmlns="urn:schemas-microsoft-com:office:excel"/>`;
+    xml += '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions>';
+    xml += '</Worksheet></Workbook>';
+
+    const blob = new Blob([xml], {type:'application/vnd.ms-excel'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `prehlad_dilerov_${new Date().toISOString().slice(0,10)}.xls`;
+    a.click();
+    toast('Prehľad exportovaný', 'success');
   }
 
   // ============================================================
